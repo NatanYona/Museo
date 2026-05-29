@@ -20,7 +20,7 @@ export const CONFIG = {
     // Mapeo RELATIVO/acumulativo: cuánto cambia el valor por un arrastre
     // equivalente al ancho completo de la pantalla. 1.0 ≈ un swipe full
     // recorre todo el rango. <1 = gesto más "largo"/fino.
-    sensitivity: 0.85,
+    sensitivity: 1.15,
     // Velocidad de aproximación del valor mostrado al valor objetivo.
     // Más alto = respuesta más inmediata; más bajo = más untuoso.
     // (independiente del framerate)
@@ -35,8 +35,8 @@ export const CONFIG = {
      se apaga a brasas (queda el `floor`).
      ---------------------------------------------------------------- */
   energy: {
-    decay: 0.4, // ritmo de apagado por falta de estímulo (1/s)
-    moveGain: 2.2, // cuánto aviva el arrastre de un dedo
+    decay: 0.2, // ritmo de apagado por falta de estímulo (1/s) → más bajo = el fuego dura más
+    moveGain: 3.2, // cuánto aviva el arrastre de un dedo
     pinchGain: 2.6, // cuánto aviva/sofoca el pellizco (separar/juntar)
     floor: 0.06, // brasa mínima que queda aunque no haya estímulo
   },
@@ -178,11 +178,15 @@ export const CONFIG = {
      ---------------------------------------------------------------- */
   audio: {
     masterVolume: 0.9,
+    // Archivo de fuego real (loop). Si carga, reemplaza al crepitar
+    // sintetizado; su volumen sigue la vida del fuego (capa "fire").
+    // Dejar en null o que el archivo no exista → usa el sintetizado.
+    fireSample: "assets/audio/fuego.mp3",
     layers: {
       wind: { master: 0.5, from: "ambient" }, // viento/altiplano
       drone: { master: 0.32, from: "ambient" }, // pedal grave de base
       texture: { master: 0.3, from: "textureAmount" }, // brillo cerámico
-      fire: { master: 0.6, from: "fireIntensity" }, // crepitar del fuego
+      fire: { master: 0.6, from: "fireIntensity" }, // fuego (real o sintetizado)
       climax: { master: 0.5, from: "climax" }, // sub envolvente
     },
   },

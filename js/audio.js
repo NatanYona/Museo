@@ -46,6 +46,9 @@ export class AudioEngine {
     this._buildClimax();
 
     this.ready = true;
+
+    // Intenta cargar el fuego real en segundo plano (no bloquea el arranque).
+    this._loadFireSample();
   }
 
   // --- helpers --------------------------------------------------------
@@ -135,6 +138,14 @@ export class AudioEngine {
     const ctx = this.ctx;
     const g = this._gain(0); // bus del fuego → master (ganancia = fireIntensity)
 
+    // Dos submezclas dentro del bus:
+    //   synth  → crepitar sintetizado (suena por defecto)
+    //   sample → archivo real (silenciado hasta que cargue; ver _loadFireSample)
+    this._fireSynth = this._gain(1);
+    this._fireSample = this._gain(0);
+    this._fireSynth.connect(g);
+    this._fireSample.connect(g);
+
     // Cuerpo: "whoosh" de la llama (banda media con LFO suave)
     const body = this._noiseSource();
     const bp = ctx.createBiquadFilter();
@@ -142,7 +153,7 @@ export class AudioEngine {
     bp.frequency.value = 1100;
     bp.Q.value = 0.7;
     const bodyg = this._gain(0.6);
-    body.connect(bp).connect(bodyg).connect(g);
+    body.connect(bp).connect(bodyg).connect(this._fireSynth);
     this._lfo(bp.frequency, 2.6, 500, 1100);
     body.start();
 
@@ -152,22 +163,45 @@ export class AudioEngine {
     lp.type = "lowpass";
     lp.frequency.value = 95;
     const rg = this._gain(0.5);
-    rumble.connect(lp).connect(rg).connect(g);
+    rumble.connect(lp).connect(rg).connect(this._fireSynth);
     rumble.start();
 
     // Chasquidos: banda aguda con compuerta aleatoria (ver update()).
-    // Es lo que da la sensación de "crepitar" real, no solo ruido.
     const crackle = this._noiseSource();
     const hp = ctx.createBiquadFilter();
     hp.type = "bandpass";
     hp.frequency.value = 3200;
     hp.Q.value = 1.3;
     this._crackle = this._gain(0); // se modula por frame en update()
-    crackle.connect(hp).connect(this._crackle).connect(g);
+    crackle.connect(hp).connect(this._crackle).connect(this._fireSynth);
     crackle.start();
 
     g.connect(this.master);
     this.layers.fire = g;
+  }
+
+  /** Carga el archivo de fuego real y lo pone en loop. Si lo logra,
+   *  hace crossfade del crepitar sintetizado al archivo. Si falla
+   *  (no existe / formato no soportado), queda el sintetizado. */
+  async _loadFireSample() {
+    const url = CONFIG.audio.fireSample;
+    if (!url) return;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const buf = await this.ctx.decodeAudioData(await res.arrayBuffer());
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true; // bucle continuo de ~2 min
+      src.connect(this._fireSample);
+      src.start();
+      // Crossfade: el volumen del bus (= vida del fuego) ya lo controla update()
+      const now = this.ctx.currentTime;
+      this._fireSynth.gain.setTargetAtTime(0, now, 0.4);
+      this._fireSample.gain.setTargetAtTime(1, now, 0.4);
+    } catch (_) {
+      /* sin archivo: se mantiene el crepitar sintetizado */
+    }
   }
 
   _buildClimax() {
