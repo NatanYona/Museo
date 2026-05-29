@@ -16,7 +16,7 @@
 
 export const CONFIG = {
   // Panel de diagnóstico en pantalla (poner en false para la versión final).
-  debug: true,
+  debug: false,
 
   /* ---- Interacción ------------------------------------------------ */
   interaction: {
@@ -188,7 +188,7 @@ export const CONFIG = {
     layers: {
       wind: { master: 0.5, from: "ambient" }, // viento/altiplano
       drone: { master: 0.32, from: "ambient" }, // pedal grave de base
-      texture: { master: 0.3, from: "textureAmount" }, // brillo cerámico
+      texture: { master: 0.18, from: "textureAmount" }, // brillo cerámico
       fire: { master: 0.6, from: "fireIntensity" }, // fuego (real o sintetizado)
       climax: { master: 0.5, from: "climax" }, // sub envolvente
     },

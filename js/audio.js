@@ -149,70 +149,37 @@ export class AudioEngine {
 
   _buildTexture() {
     const ctx = this.ctx;
-    const mix = this._gain(0);
-    // Acorde alto y vidrioso ("cerámico"), con leve trémolo y vibrato.
-    [660, 990, 1320].forEach((f) => {
+    const mix = this._gain(0); // ganancia de la capa (la controla update())
+    // Brillo cerámico: tríada cálida una octava más grave que antes,
+    // suave y SIN trémolo pulsante (eso era lo que sonaba a alarma).
+    // Solo un vibrato muy leve para que respire. Lowpass para redondear.
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 1100;
+    lp.Q.value = 0.5;
+    lp.connect(mix).connect(this.master);
+    [330, 495, 660].forEach((f) => {
       const o = this._osc("sine", f);
-      const og = this._gain(0.18);
-      this._lfo(o.detune, 0.2 + Math.random() * 0.3, 6, 0); // vibrato
-      o.connect(og).connect(mix);
+      const og = this._gain(0.12);
+      this._lfo(o.detune, 0.15 + Math.random() * 0.2, 4, 0); // vibrato sutil
+      o.connect(og).connect(lp);
       o.start();
     });
-    const trem = this._gain(1);
-    this._lfo(trem.gain, 0.5, 0.4, 0.6); // trémolo
-    mix.connect(trem).connect(this.master);
     this.layers.texture = mix;
   }
 
   _buildFire() {
-    const ctx = this.ctx;
-    const g = this._gain(0); // bus del fuego → master (ganancia = fireIntensity)
-
-    // Dos submezclas dentro del bus:
-    //   synth  → crepitar sintetizado (suena por defecto)
-    //   sample → archivo real (silenciado hasta que cargue; ver _loadFireSample)
-    this._fireSynth = this._gain(1);
-    this._fireSample = this._gain(0);
-    this._fireSynth.connect(g);
-    this._fireSample.connect(g);
-
-    // Cuerpo: "whoosh" de la llama (banda media con LFO suave)
-    const body = this._noiseSource();
-    const bp = ctx.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.frequency.value = 1100;
-    bp.Q.value = 0.7;
-    const bodyg = this._gain(0.6);
-    body.connect(bp).connect(bodyg).connect(this._fireSynth);
-    this._lfo(bp.frequency, 2.6, 500, 1100);
-    body.start();
-
-    // Rumor grave (la masa del fuego)
-    const rumble = this._noiseSource();
-    const lp = ctx.createBiquadFilter();
-    lp.type = "lowpass";
-    lp.frequency.value = 95;
-    const rg = this._gain(0.5);
-    rumble.connect(lp).connect(rg).connect(this._fireSynth);
-    rumble.start();
-
-    // Chasquidos: banda aguda con compuerta aleatoria (ver update()).
-    const crackle = this._noiseSource();
-    const hp = ctx.createBiquadFilter();
-    hp.type = "bandpass";
-    hp.frequency.value = 3200;
-    hp.Q.value = 1.3;
-    this._crackle = this._gain(0); // se modula por frame en update()
-    crackle.connect(hp).connect(this._crackle).connect(this._fireSynth);
-    crackle.start();
-
+    // Bus del fuego → master. La ganancia (= vida del fuego) la fija
+    // update(). El sonido entra desde el archivo real (ver _loadFireSample);
+    // ya no hay crepitar sintetizado.
+    const g = this._gain(0);
     g.connect(this.master);
     this.layers.fire = g;
   }
 
-  /** Carga el archivo de fuego real y lo pone en loop. Si lo logra,
-   *  hace crossfade del crepitar sintetizado al archivo. Si falla
-   *  (no existe / formato no soportado), queda el sintetizado. */
+  /** Carga el archivo de fuego real y lo pone en loop, conectándolo al
+   *  bus de fuego. Su volumen lo controla update() (= vida del fuego).
+   *  Si falla (no existe / formato no soportado), el fuego queda mudo. */
   async _loadFireSample() {
     const url = CONFIG.audio.fireSample;
     if (!url) return;
@@ -224,15 +191,11 @@ export class AudioEngine {
       const src = this.ctx.createBufferSource();
       src.buffer = buf;
       src.loop = true; // bucle continuo
-      src.connect(this._fireSample);
+      src.connect(this.layers.fire);
       src.start();
-      // Crossfade: el volumen del bus (= vida del fuego) ya lo controla update()
-      const now = this.ctx.currentTime;
-      this._fireSynth.gain.setTargetAtTime(0, now, 0.4);
-      this._fireSample.gain.setTargetAtTime(1, now, 0.4);
       this.sampleStatus = "loaded";
     } catch (_) {
-      this.sampleStatus = "failed"; // se mantiene el crepitar sintetizado
+      this.sampleStatus = "failed";
     }
   }
 
@@ -272,23 +235,9 @@ export class AudioEngine {
     const L = CONFIG.audio.layers;
     for (const [name, node] of Object.entries(this.layers)) {
       const cfg = L[name];
-      let target = cfg.master * scene[cfg.from];
-      let tau = 0.08;
-      if (name === "fire") {
-        // Leve parpadeo de la masa del fuego
-        target *= 0.8 + 0.2 * Math.random();
-        tau = 0.05;
-      }
-      node.gain.setTargetAtTime(target, now, tau);
+      const target = cfg.master * scene[cfg.from];
+      node.gain.setTargetAtTime(target, now, 0.08);
     }
-
-    // Chasquidos del fuego: compuerta aleatoria, más densa cuanto más
-    // intenso el fuego. Da el "crepitar" por encima del ruido continuo.
-    const fi = scene.fireIntensity;
-    const pop = Math.random() < 0.15 + 0.55 * fi
-      ? (0.4 + 0.6 * Math.random()) * fi
-      : 0.03 * fi;
-    this._crackle.gain.setTargetAtTime(pop, now, 0.012);
   }
 
   /** Silenciar/recuperar (p. ej. al perder foco la pestaña del kiosco). */
