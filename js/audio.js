@@ -149,23 +149,58 @@ export class AudioEngine {
 
   _buildTexture() {
     const ctx = this.ctx;
-    const mix = this._gain(0); // ganancia de la capa (la controla update())
-    // Brillo cerámico: tríada cálida una octava más grave que antes,
-    // suave y SIN trémolo pulsante (eso era lo que sonaba a alarma).
-    // Solo un vibrato muy leve para que respire. Lowpass para redondear.
+    const mix = this._gain(0); // volumen de capa (la controla update())
+
+    // Cadena: notas → bus → lowpass → (seco + eco) → mix → master.
+    // El eco (delay con realimentación) da aire y movimiento "musical".
+    this._ceramicBus = this._gain(1);
     const lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
-    lp.frequency.value = 1100;
-    lp.Q.value = 0.5;
-    lp.connect(mix).connect(this.master);
-    [330, 495, 660].forEach((f) => {
-      const o = this._osc("sine", f);
-      const og = this._gain(0.12);
-      this._lfo(o.detune, 0.15 + Math.random() * 0.2, 4, 0); // vibrato sutil
-      o.connect(og).connect(lp);
-      o.start();
-    });
+    lp.frequency.value = 2400;
+    lp.Q.value = 0.4;
+    const delay = ctx.createDelay(1.0);
+    delay.delayTime.value = 0.38;
+    const fb = this._gain(0.34); // realimentación del eco
+    const wet = this._gain(0.5); // cantidad de eco
+
+    this._ceramicBus.connect(lp);
+    lp.connect(mix); // señal seca
+    lp.connect(delay); // hacia el eco
+    delay.connect(fb).connect(delay); // cola del eco
+    delay.connect(wet).connect(mix); // eco al mix
+    mix.connect(this.master);
     this.layers.texture = mix;
+
+    // Escala pentatónica (La menor pentatónica): siempre consonante.
+    this._ceramicScale = [220, 261.63, 293.66, 329.63, 392, 440, 523.25, 587.33];
+    this._nextCeramic = 0; // momento de la próxima nota (se fija en update)
+  }
+
+  /** Dispara una nota "cerámica": campana suave (fundamental + parcial
+   *  inarmónico) con envolvente percusiva. Es lo que hace que la capa
+   *  evolucione en vez de quedar estática. */
+  _pluckCeramic(freq) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const peak = 0.35 + Math.random() * 0.25;
+    const dur = 1.6 + Math.random() * 1.4;
+
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t);
+    env.gain.linearRampToValueAtTime(peak, t + 0.006); // ataque rápido
+    env.gain.exponentialRampToValueAtTime(0.0001, t + dur); // cola que decae
+
+    const o1 = this._osc("sine", freq);
+    const o2 = this._osc("sine", freq * 2.76); // parcial de campana/cerámica
+    const o2g = this._gain(0.16);
+    o1.connect(env);
+    o2.connect(o2g).connect(env);
+    env.connect(this._ceramicBus);
+
+    o1.start(t);
+    o2.start(t);
+    o1.stop(t + dur + 0.1);
+    o2.stop(t + dur + 0.1);
   }
 
   _buildFire() {
@@ -237,6 +272,20 @@ export class AudioEngine {
       const cfg = L[name];
       const target = cfg.master * scene[cfg.from];
       node.gain.setTargetAtTime(target, now, 0.08);
+    }
+
+    // Secuencia cerámica generativa: notas pentatónicas en intervalos
+    // variables → la capa "texture" evoluciona y nunca queda estática.
+    // Solo cuando la capa es audible (textureAmount > umbral).
+    if (scene.textureAmount > 0.05) {
+      if (this._nextCeramic === 0) this._nextCeramic = now + 0.2;
+      while (now >= this._nextCeramic) {
+        const s = this._ceramicScale;
+        this._pluckCeramic(s[(Math.random() * s.length) | 0]);
+        this._nextCeramic += 0.5 + Math.random() * 1.7; // ritmo irregular
+      }
+    } else {
+      this._nextCeramic = 0; // reinicia cuando la capa calla
     }
   }
 
