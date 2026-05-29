@@ -188,7 +188,7 @@ export const CONFIG = {
     layers: {
       wind: { master: 0.5, from: "ambient" }, // viento/altiplano
       drone: { master: 0.32, from: "ambient" }, // pedal grave de base
-      texture: { master: 0.3, from: "textureAmount" }, // cerámica: notas pentatónicas generativas
+      texture: { master: 0.3, from: "fireIntensity" }, // cerámica: notas pentatónicas, ligadas al fuego
       fire: { master: 0.6, from: "fireIntensity" }, // fuego (real o sintetizado)
       climax: { master: 0.5, from: "climax" }, // sub envolvente
     },

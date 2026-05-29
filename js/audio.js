@@ -19,6 +19,7 @@
    ==================================================================== */
 
 import { CONFIG } from "./config.js";
+import { clamp, lerp } from "./utils.js";
 
 export class AudioEngine {
   constructor() {
@@ -171,14 +172,31 @@ export class AudioEngine {
     mix.connect(this.master);
     this.layers.texture = mix;
 
-    // Escala pentatónica (La menor pentatónica): siempre consonante.
-    this._ceramicScale = [220, 261.63, 293.66, 329.63, 392, 440, 523.25, 587.33];
+    // Escala pentatónica (La menor pentatónica) sobre ~2 octavas, ordenada.
+    // La melodía se mueve POR GRADOS (no al azar) → suena intencional.
+    this._ceramicScale = [
+      220, 261.63, 293.66, 329.63, 392, // A3 C4 D4 E4 G4
+      440, 523.25, 587.33, 659.25, // A4 C5 D5 E5
+    ];
+    this._ceramicIdx = 3; // grado actual (arranca en el medio-grave)
     this._nextCeramic = 0; // momento de la próxima nota (se fija en update)
   }
 
+  /** Elige la próxima nota moviéndose por grados de la escala (paso ±1/±2,
+   *  nunca quieto) → contorno melódico en vez de saltos aleatorios. */
+  _nextCeramicNote() {
+    const steps = [-2, -1, -1, -1, 1, 1, 1, 2];
+    const i = clamp(
+      this._ceramicIdx + steps[(Math.random() * steps.length) | 0],
+      0,
+      this._ceramicScale.length - 1
+    );
+    this._ceramicIdx = i;
+    return this._ceramicScale[i];
+  }
+
   /** Dispara una nota "cerámica": campana suave (fundamental + parcial
-   *  inarmónico) con envolvente percusiva. Es lo que hace que la capa
-   *  evolucione en vez de quedar estática. */
+   *  inarmónico) con envolvente percusiva. */
   _pluckCeramic(freq) {
     const ctx = this.ctx;
     const t = ctx.currentTime;
@@ -274,18 +292,21 @@ export class AudioEngine {
       node.gain.setTargetAtTime(target, now, 0.08);
     }
 
-    // Secuencia cerámica generativa: notas pentatónicas en intervalos
-    // variables → la capa "texture" evoluciona y nunca queda estática.
-    // Solo cuando la capa es audible (textureAmount > umbral).
-    if (scene.textureAmount > 0.05) {
-      if (this._nextCeramic === 0) this._nextCeramic = now + 0.2;
+    // Secuencia cerámica generativa, DE LA MANO DEL FUEGO:
+    //  - solo suena cuando el fuego está avivado (no con la brasa mínima),
+    //  - cuanto más fuego, menos espaciadas las notas,
+    //  - la melodía se mueve por grados de la escala (armónica).
+    const fi = scene.fireIntensity;
+    if (fi > 0.12) {
+      if (this._nextCeramic === 0) this._nextCeramic = now + 0.15;
       while (now >= this._nextCeramic) {
-        const s = this._ceramicScale;
-        this._pluckCeramic(s[(Math.random() * s.length) | 0]);
-        this._nextCeramic += 0.5 + Math.random() * 1.7; // ritmo irregular
+        this._pluckCeramic(this._nextCeramicNote());
+        // Intervalo: ~1.4 s con poco fuego → ~0.2 s en el clímax.
+        const base = lerp(1.4, 0.2, clamp(fi));
+        this._nextCeramic += base * (0.75 + Math.random() * 0.5);
       }
     } else {
-      this._nextCeramic = 0; // reinicia cuando la capa calla
+      this._nextCeramic = 0; // reinicia cuando el fuego se apaga
     }
   }
 
