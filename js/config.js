@@ -15,6 +15,9 @@
    ==================================================================== */
 
 export const CONFIG = {
+  // Panel de diagnóstico en pantalla (poner en false para la versión final).
+  debug: true,
+
   /* ---- Interacción ------------------------------------------------ */
   interaction: {
     // Mapeo RELATIVO/acumulativo: cuánto cambia el valor por un arrastre

@@ -39,16 +39,37 @@ const interaction = new Interaction(canvas, {
   },
   onFirstRelease: () => {
     // El bloqueo de orientación requiere fullscreen ya activo → encadenar.
-    enterFullscreen().then(() => lockLandscape());
+    // Tras la transición a fullscreen, mobile suele suspender el audio:
+    // lo reanudamos al terminar.
+    enterFullscreen()
+      .then(() => lockLandscape())
+      .finally(() => audio.wake());
   },
 });
 
 suppressBrowserGestures();
 
+// Red de seguridad: en cada toque, reanudar el audio si quedó suspendido
+// (típico en mobile tras fullscreen/rotación) y restaurar el volumen.
+canvas.addEventListener("pointerdown", () => audio.wake());
+
 // Pausar el sonido si el kiosco pierde foco; reanudar al volver.
 document.addEventListener("visibilitychange", () => {
-  audio.setMuted(document.visibilityState !== "visible");
+  if (document.visibilityState === "visible") audio.wake();
+  else audio.setMuted(true);
 });
+
+// Panel de diagnóstico (CONFIG.debug). Quitar para la versión final.
+let hud = null;
+if (CONFIG.debug) {
+  hud = document.createElement("div");
+  hud.style.cssText =
+    "position:fixed;top:8px;left:8px;z-index:20;font:12px/1.4 monospace;" +
+    "color:#fff;background:rgba(0,0,0,.6);padding:6px 9px;border-radius:6px;" +
+    "white-space:pre;pointer-events:none;";
+  document.body.appendChild(hud);
+}
+let hudTick = 0;
 
 // ---- Bucle principal ----
 let last = performance.now();
@@ -70,6 +91,14 @@ function frame(now) {
 
   visual.render(scene, dt);
   audio.update(scene);
+
+  if (hud && (hudTick++ & 7) === 0) {
+    const d = audio.getDebug();
+    hud.textContent =
+      `ctx:${d.state}  sample:${d.sample}\n` +
+      `master:${d.master ?? "-"}  fireGain:${d.fire ?? "-"}\n` +
+      `value:${value.toFixed(2)}  energy:${interaction.energy.toFixed(2)}  pts:${interaction.pointerCount}`;
+  }
 
   requestAnimationFrame(frame);
 }

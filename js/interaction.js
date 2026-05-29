@@ -60,6 +60,11 @@ export class Interaction {
     return performance.now() / 1000;
   }
 
+  /** Cantidad de dedos activos (para debug). */
+  get pointerCount() {
+    return this._pointers.size;
+  }
+
   /** Distancia entre los dos primeros dedos activos (para el pellizco). */
   _pinchDistance() {
     const it = this._pointers.values();

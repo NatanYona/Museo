@@ -25,6 +25,30 @@ export class AudioEngine {
     this.ready = false;
     this.ctx = null;
     this.layers = {};
+    this.sampleStatus = "none"; // none | loading | loaded | failed
+  }
+
+  /** Reanuda el contexto si quedó suspendido (común tras fullscreen en
+   *  mobile) y restaura el volumen maestro. Llamar en cada toque. */
+  wake() {
+    if (!this.ready) return;
+    if (this.ctx.state !== "running") this.ctx.resume().catch(() => {});
+    this.master.gain.setTargetAtTime(
+      CONFIG.audio.masterVolume,
+      this.ctx.currentTime,
+      0.1
+    );
+  }
+
+  /** Estado para el panel de debug. */
+  getDebug() {
+    if (!this.ready) return { state: "no-init", sample: this.sampleStatus };
+    return {
+      state: this.ctx.state,
+      sample: this.sampleStatus,
+      master: +this.master.gain.value.toFixed(2),
+      fire: +this.layers.fire.gain.value.toFixed(2),
+    };
   }
 
   async init() {
@@ -186,21 +210,23 @@ export class AudioEngine {
   async _loadFireSample() {
     const url = CONFIG.audio.fireSample;
     if (!url) return;
+    this.sampleStatus = "loading";
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const buf = await this.ctx.decodeAudioData(await res.arrayBuffer());
       const src = this.ctx.createBufferSource();
       src.buffer = buf;
-      src.loop = true; // bucle continuo de ~2 min
+      src.loop = true; // bucle continuo
       src.connect(this._fireSample);
       src.start();
       // Crossfade: el volumen del bus (= vida del fuego) ya lo controla update()
       const now = this.ctx.currentTime;
       this._fireSynth.gain.setTargetAtTime(0, now, 0.4);
       this._fireSample.gain.setTargetAtTime(1, now, 0.4);
+      this.sampleStatus = "loaded";
     } catch (_) {
-      /* sin archivo: se mantiene el crepitar sintetizado */
+      this.sampleStatus = "failed"; // se mantiene el crepitar sintetizado
     }
   }
 
