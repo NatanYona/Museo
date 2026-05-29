@@ -24,16 +24,21 @@ const gate = document.getElementById("gate");
 const visual = new VisualEngine(canvas);
 const audio = new AudioEngine();
 
-// El primer toque desbloquea audio y modo kiosco, y oculta la compuerta.
-// IMPORTANTE: fullscreen y audio deben pedirse DENTRO del gesto, antes de
-// cualquier await; si no, el navegador descarta la "activación de usuario".
+// Desbloqueo del kiosco repartido entre los dos momentos del gesto:
+//  - pointerdown: oculta la compuerta y crea el AudioContext (el autoplay
+//    de audio sí se permite al iniciar el toque).
+//  - pointerup:   pide fullscreen + bloqueo de orientación. Chrome ignora
+//    requestFullscreen si se llama en pointerdown; solo lo acepta al
+//    levantar el dedo (pointerup/click).
 const interaction = new Interaction(canvas, {
   onFirstTouch: () => {
     gate.classList.add("is-hidden");
-    enterFullscreen(); // sincrónico dentro del gesto (Android/Chrome)
-    audio.init(); // crea el AudioContext en el gesto (políticas de autoplay)
-    lockLandscape(); // best-effort: requiere fullscreen activo
+    audio.init();
     keepAwake();
+  },
+  onFirstRelease: () => {
+    // El bloqueo de orientación requiere fullscreen ya activo → encadenar.
+    enterFullscreen().then(() => lockLandscape());
   },
 });
 

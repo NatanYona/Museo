@@ -17,13 +17,15 @@ import { CONFIG } from "./config.js";
 import { clamp, damp, lerp } from "./utils.js";
 
 export class Interaction {
-  constructor(target, { onFirstTouch } = {}) {
+  constructor(target, { onFirstTouch, onFirstRelease } = {}) {
     this.el = target; // elemento que captura el gesto (el canvas)
-    this.onFirstTouch = onFirstTouch;
+    this.onFirstTouch = onFirstTouch; // se dispara en el primer pointerdown
+    this.onFirstRelease = onFirstRelease; // se dispara en el primer pointerup
 
     this.value = 0; // valor mostrado (suavizado) 0..1
     this.target = 0; // valor objetivo al que tiende
     this.firstTouchDone = false;
+    this.firstReleaseDone = false;
 
     this._down = false;
     this._lastX = 0;
@@ -84,6 +86,12 @@ export class Interaction {
     this._down = false;
     this._activePointer = null;
     this._lastInputTime = this._now();
+    // Fullscreen necesita activarse en un pointerup/click (no en pointerdown):
+    // Chrome ignora requestFullscreen pedido al iniciar el toque.
+    if (e.type === "pointerup" && !this.firstReleaseDone) {
+      this.firstReleaseDone = true;
+      this.onFirstRelease?.();
+    }
   };
 
   /** Avanza un frame. dt en segundos. Devuelve el valor suavizado. */
