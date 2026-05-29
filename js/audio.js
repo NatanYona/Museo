@@ -172,24 +172,31 @@ export class AudioEngine {
     mix.connect(this.master);
     this.layers.texture = mix;
 
-    // Escala pentatónica (La menor pentatónica) sobre ~2 octavas, ordenada.
+    // Escala pentatónica (La menor pentatónica) sobre ~3 octavas, ordenada.
     // La melodía se mueve POR GRADOS (no al azar) → suena intencional.
     this._ceramicScale = [
       220, 261.63, 293.66, 329.63, 392, // A3 C4 D4 E4 G4
-      440, 523.25, 587.33, 659.25, // A4 C5 D5 E5
+      440, 523.25, 587.33, 659.25, 783.99, // A4 C5 D5 E5 G5
+      880, // A5
     ];
     this._ceramicIdx = 3; // grado actual (arranca en el medio-grave)
     this._nextCeramic = 0; // momento de la próxima nota (se fija en update)
   }
 
-  /** Elige la próxima nota moviéndose por grados de la escala (paso ±1/±2,
-   *  nunca quieto) → contorno melódico en vez de saltos aleatorios. */
-  _nextCeramicNote() {
-    const steps = [-2, -1, -1, -1, 1, 1, 1, 2];
+  /** Elige la próxima nota moviéndose por grados de la escala. El centro
+   *  melódico SUBE con el fuego (`fi`): grave/medio en reposo, octavas
+   *  altas en el clímax. El paso se sesga hacia ese registro objetivo,
+   *  manteniendo un contorno melódico (no saltos aleatorios). */
+  _nextCeramicNote(fi) {
+    const n = this._ceramicScale.length;
+    const target = Math.round(lerp(1, n - 2, clamp(fi))); // registro según fuego
+    // Pool de pasos sesgado hacia el objetivo (arriba si fi alto, etc.)
+    const up = this._ceramicIdx < target;
+    const pool = up ? [-1, 1, 1, 2, 2] : [-2, -1, -1, 1];
     const i = clamp(
-      this._ceramicIdx + steps[(Math.random() * steps.length) | 0],
+      this._ceramicIdx + pool[(Math.random() * pool.length) | 0],
       0,
-      this._ceramicScale.length - 1
+      n - 1
     );
     this._ceramicIdx = i;
     return this._ceramicScale[i];
@@ -300,7 +307,7 @@ export class AudioEngine {
     if (fi > 0.12) {
       if (this._nextCeramic === 0) this._nextCeramic = now + 0.15;
       while (now >= this._nextCeramic) {
-        this._pluckCeramic(this._nextCeramicNote());
+        this._pluckCeramic(this._nextCeramicNote(fi));
         // Intervalo: ~1.4 s con poco fuego → ~0.2 s en el clímax.
         const base = lerp(1.4, 0.2, clamp(fi));
         this._nextCeramic += base * (0.75 + Math.random() * 0.5);
