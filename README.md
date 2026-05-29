@@ -12,8 +12,15 @@ el paisaje y el sonido. No hay botones, barras ni instrucciones.
 
 ## Cómo se siente el gesto
 
-- **Mapeo relativo / acumulativo**: el valor cambia según _cuánto_ se arrastra,
-  no según _dónde_ se toca. No existen "posiciones correctas".
+- **1 dedo (arrastre horizontal)**: recorre el paisaje. Mapeo **relativo /
+  acumulativo** — el valor cambia según _cuánto_ se arrastra, no según _dónde_
+  se toca. No existen "posiciones correctas". Además, el movimiento **aviva el
+  fuego** (lo alimenta de energía).
+- **2 dedos (pellizco)**: separar = **avivar** el fuego, juntar = **sofocarlo**.
+  Actúa solo sobre la intensidad, sin mover la posición.
+- **Energía / estímulo**: el fuego está vivo según la actividad del visitante y
+  **se apaga a brasas por falta de estímulo**. La posición define cuánto fuego
+  es _posible_ en ese paisaje (el "combustible"); la energía, cuánto está vivo.
 - **Interpolación suave** (lerp exponencial + smoothstep) → respuesta en tiempo
   real sin saltos.
 - **Modo atracción**: tras unos segundos sin uso, la escena respira sola para

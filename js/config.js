@@ -27,6 +27,20 @@ export const CONFIG = {
     smoothing: 9,
   },
 
+  /* ---- Energía del fuego (estímulo) ------------------------------
+     La energía (0..1) es la "vida" del fuego: NO la fija la posición,
+     sino la actividad del visitante. Se alimenta con el movimiento de
+     un dedo y con el pellizco de dos dedos; decae sola con el tiempo.
+     El fuego visible = potencial(posición) · energía → en la quietud,
+     se apaga a brasas (queda el `floor`).
+     ---------------------------------------------------------------- */
+  energy: {
+    decay: 0.4, // ritmo de apagado por falta de estímulo (1/s)
+    moveGain: 2.2, // cuánto aviva el arrastre de un dedo
+    pinchGain: 2.6, // cuánto aviva/sofoca el pellizco (separar/juntar)
+    floor: 0.06, // brasa mínima que queda aunque no haya estímulo
+  },
+
   /* ---- Modo atracción (reposo) ----------------------------------- */
   attract: {
     idleDelay: 6, // s sin tocar antes de activar el vaivén

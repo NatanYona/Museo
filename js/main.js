@@ -7,6 +7,7 @@
                                               └────► AudioEngine.update
    ==================================================================== */
 
+import { CONFIG } from "./config.js";
 import { Interaction } from "./interaction.js";
 import { sampleScene } from "./scene.js";
 import { VisualEngine } from "./visual.js";
@@ -58,6 +59,15 @@ function frame(now) {
 
   const value = interaction.update(dt);
   const scene = sampleScene(value);
+
+  // Fuego VISIBLE = potencial del paisaje (posición) · vida (energía).
+  // Con energía baja, el fuego cae a brasas (queda el floor). El clímax
+  // sonoro se apaga del todo (sin floor) cuando no hay estímulo.
+  const live = CONFIG.energy.floor + (1 - CONFIG.energy.floor) * interaction.energy;
+  scene.fireIntensity *= live;
+  scene.emberRate *= live;
+  scene.climax *= interaction.energy;
+
   visual.render(scene, dt);
   audio.update(scene);
 

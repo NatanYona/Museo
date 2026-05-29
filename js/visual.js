@@ -246,13 +246,16 @@ export class VisualEngine {
     }
 
     // ---- 3. Resplandor de horizonte / bloom cálido ----
-    if (scene.light > 0.01) {
+    // Ligado al fuego VIVO (fireIntensity ya incluye la energía): si el
+    // fuego se apaga por falta de estímulo, el resplandor también baja.
+    const fg = scene.fireIntensity;
+    if (fg > 0.01) {
       const gx = w * 0.5;
       const gy = h * 0.92;
-      const gr = h * (0.4 + scene.light * 0.6);
+      const gr = h * (0.35 + fg * 0.65);
       const glow = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
-      glow.addColorStop(0, rgb(scene.fireColor, 0.55 * scene.light));
-      glow.addColorStop(0.5, rgb(scene.fireColor, 0.2 * scene.light));
+      glow.addColorStop(0, rgb(scene.fireColor, 0.6 * fg));
+      glow.addColorStop(0.5, rgb(scene.fireColor, 0.22 * fg));
       glow.addColorStop(1, rgb(scene.fireColor, 0));
       ctx.save();
       ctx.globalCompositeOperation = "lighter";

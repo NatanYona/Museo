@@ -133,24 +133,39 @@ export class AudioEngine {
 
   _buildFire() {
     const ctx = this.ctx;
-    const g = this._gain(0);
-    // Crepitar: ruido en banda media-alta
-    const crackle = this._noiseSource();
+    const g = this._gain(0); // bus del fuego → master (ganancia = fireIntensity)
+
+    // Cuerpo: "whoosh" de la llama (banda media con LFO suave)
+    const body = this._noiseSource();
     const bp = ctx.createBiquadFilter();
     bp.type = "bandpass";
-    bp.frequency.value = 1400;
-    bp.Q.value = 0.8;
-    crackle.connect(bp).connect(g);
-    this._lfo(bp.frequency, 3.1, 600, 1400);
-    crackle.start();
-    // Rumor grave del fuego
+    bp.frequency.value = 1100;
+    bp.Q.value = 0.7;
+    const bodyg = this._gain(0.6);
+    body.connect(bp).connect(bodyg).connect(g);
+    this._lfo(bp.frequency, 2.6, 500, 1100);
+    body.start();
+
+    // Rumor grave (la masa del fuego)
     const rumble = this._noiseSource();
     const lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
-    lp.frequency.value = 110;
-    const rg = this._gain(0.6);
+    lp.frequency.value = 95;
+    const rg = this._gain(0.5);
     rumble.connect(lp).connect(rg).connect(g);
     rumble.start();
+
+    // Chasquidos: banda aguda con compuerta aleatoria (ver update()).
+    // Es lo que da la sensación de "crepitar" real, no solo ruido.
+    const crackle = this._noiseSource();
+    const hp = ctx.createBiquadFilter();
+    hp.type = "bandpass";
+    hp.frequency.value = 3200;
+    hp.Q.value = 1.3;
+    this._crackle = this._gain(0); // se modula por frame en update()
+    crackle.connect(hp).connect(this._crackle).connect(g);
+    crackle.start();
+
     g.connect(this.master);
     this.layers.fire = g;
   }
@@ -194,12 +209,20 @@ export class AudioEngine {
       let target = cfg.master * scene[cfg.from];
       let tau = 0.08;
       if (name === "fire") {
-        // Parpadeo del crepitar: jitter rápido de amplitud
-        target *= 0.6 + 0.4 * Math.random();
-        tau = 0.03;
+        // Leve parpadeo de la masa del fuego
+        target *= 0.8 + 0.2 * Math.random();
+        tau = 0.05;
       }
       node.gain.setTargetAtTime(target, now, tau);
     }
+
+    // Chasquidos del fuego: compuerta aleatoria, más densa cuanto más
+    // intenso el fuego. Da el "crepitar" por encima del ruido continuo.
+    const fi = scene.fireIntensity;
+    const pop = Math.random() < 0.15 + 0.55 * fi
+      ? (0.4 + 0.6 * Math.random()) * fi
+      : 0.03 * fi;
+    this._crackle.gain.setTargetAtTime(pop, now, 0.012);
   }
 
   /** Silenciar/recuperar (p. ej. al perder foco la pestaña del kiosco). */
