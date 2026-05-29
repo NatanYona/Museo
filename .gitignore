@@ -1,0 +1,14 @@
+# Sistema operativo
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Dependencias / logs (por si se agregan herramientas luego)
+node_modules/
+npm-debug.log*

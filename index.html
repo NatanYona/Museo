@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <!-- viewport-fit + maximum-scale: evitamos zoom y barras en kiosco -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0b0a10" />
+  <title>PequeMuseo · Memoria del territorio</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Superficie única de interacción: todo el lienzo es el "slider" invisible -->
+  <canvas id="stage" aria-hidden="true"></canvas>
+
+  <!--
+    Capa de arranque. En kiosco un primer toque es necesario para:
+      1) desbloquear el AudioContext (políticas de autoplay)
+      2) entrar a pantalla completa y bloquear orientación
+    No da instrucciones de uso del gesto: solo invita a tocar para comenzar.
+    Se desvanece tras el primer contacto y no vuelve a aparecer.
+  -->
+  <div id="gate" class="gate">
+    <div class="gate__pulse"></div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
