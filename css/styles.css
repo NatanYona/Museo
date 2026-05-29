@@ -53,6 +53,9 @@ body {
   background: radial-gradient(circle at 50% 55%, #15131c 0%, #0b0a10 70%);
   z-index: 10;
   transition: opacity 1.2s ease;
+  /* Es puramente visual: deja pasar el toque al canvas, que es quien
+     captura el gesto y dispara onFirstTouch (audio + fullscreen). */
+  pointer-events: none;
 }
 
 .gate.is-hidden {
