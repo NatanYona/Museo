@@ -51,18 +51,21 @@ export class AudioEngine {
     };
   }
 
-  async init() {
+  init() {
     if (this.ready) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return; // navegador sin Web Audio: la pieza sigue funcionando muda
     this.ctx = new AC();
-    await this.ctx.resume();
 
     const ctx = this.ctx;
     this.master = ctx.createGain();
     this.master.gain.value = CONFIG.audio.masterVolume;
     this.master.connect(ctx.destination);
 
+    // El grafo se construye con el contexto aún suspendido: crear nodos y
+    // arrancar fuentes NO requiere que esté "running"; sonarán al reanudar.
+    // (Clave en mobile: antes esperábamos resume() y se colgaba, dejando
+    // la inicialización a medias.)
     this._buildWind();
     this._buildDrone();
     this._buildTexture();
@@ -71,7 +74,10 @@ export class AudioEngine {
 
     this.ready = true;
 
-    // Intenta cargar el fuego real en segundo plano (no bloquea el arranque).
+    // Reanudar (sin await) y reintentar en cada toque vía wake().
+    this.ctx.resume().catch(() => {});
+
+    // Cargar el fuego real en segundo plano (no bloquea el arranque).
     this._loadFireSample();
   }
 
